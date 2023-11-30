@@ -27,7 +27,7 @@ useEffect는 다음과 같은 파라미터를 받는다
 
 > [!warning] 주의사항
 > - 만약 dependencies가 객체이거나 컴포넌트 내부에 선언된 함수인 경우 Effect가 필요 이상으로 재실행될 수 있다. 이 경우 불필요한 의존성을 제거하거나, "이전 상태를 기반으로 상태를 업데이트"할 수 있다.
-> - Effect로 수행하는 작업이 시각적인 작업을 수행하고 지연이 눈에 띄게 발생한다면 `useLayoutEffect`를 사용해라
+> - Effect로 수행하는 작업이 시각적인 작업을 수행하고 지연이 눈에 띄게 발생한다면 `useLayoutEffect`를 사용해라 ([참고](https://medium.com/@guptagaruda/react-hooks-understanding-component-re-renders-9708ddee9928#ab4f))
 
 useEffect는 다음과 같은 경우에 사용할 수 있다
 - 외부 시스템과 연결
