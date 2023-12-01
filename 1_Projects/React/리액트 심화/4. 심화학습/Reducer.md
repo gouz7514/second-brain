@@ -1,6 +1,5 @@
 > [!참고 자료]
 > - [Extracting State Logic into a Reducer](https://react.dev/learn/extracting-state-logic-into-a-reducer)
-> - [Scaling Up with Reducer and Context](https://react.dev/learn/scaling-up-with-reducer-and-context)> 
 
 state가 많아지면 로직도 복잡해지고 관리가 힘들어진다.
 이를 통합해(consolidate)서 관리하기 위해 **reducer**를 사용할 수 있다.
