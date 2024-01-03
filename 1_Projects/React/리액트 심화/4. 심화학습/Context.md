@@ -69,7 +69,6 @@ export default function Section({ level, children }) {
 			</LevelContext.Provider>  
 		</section>  
 );  
-
 }
 ```
 

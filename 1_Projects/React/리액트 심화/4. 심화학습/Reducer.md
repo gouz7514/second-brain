@@ -116,8 +116,7 @@ function tasksReducer(tasks, action) {
 > 컴포넌트 내 코드의 양을 줄이기도 하지만, 배열에서 사용하는 `reduce()` 연산에서 이름을 따 왔다.
 > 
 > `reduce`는 지금까지의 결과와 현재 아이템을 인자로 받고 다음 결과를 반환한다.
-> 비슷하게 React의 reducer는 지금까지의  state와 action을 인자로 받고 다음 state를 반환한다. 이 과정에서 여러 
-
+> 비슷하게 React의 reducer는 지금까지의  state와 action을 인자로 받고 다음 state를 반환한다. 이 과정에서 여러 action으ㄹ 누적하여 state로 반환한다.
 #### Step 3. 컴포넌트에서 reducer **사용하기**
 
 ```javascript
