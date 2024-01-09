@@ -16,3 +16,117 @@
 > 
 > 이에 추가로, slice reducer는 계산된 상태의 일부로 반환되는 다른 값에 대한 통제를 실행해아 한다.
 
+
+### side effect를
+#### (1) 컴포넌트에서 수행하는 경우
+```javascript
+// src/App.js
+let isInitial = true;
+
+useEffect(() => {
+	const sendCartData = async () => {
+		dispatch(uiActions.showNotification({
+			status: 'pending',
+			title: 'Sending...',
+			message: 'Sending cart data!'
+		}));
+	
+		const response = await fetch('FIREBASE_URL', {
+			method: 'PUT',
+			body: JSON.stringify(cart)
+		})
+	
+		if (!response.ok) {
+			throw new Error('Sending cart data failed.');
+		}
+	
+		dispatch(uiActions.showNotification({
+			status: 'success',
+			title: 'Success!',
+			message: 'Sent cart data successfully!'
+			}));
+	}
+	
+	if (isInitial) {
+		isInitial = false;
+		return;
+	}
+	  
+	sendCartData().catch(error => {
+		dispatch(uiActions.showNotification({
+			status: 'error',
+			title: 'Error!',
+			message: 'Sending cart data failed!'
+		}));
+	})
+}
+, [cart, dispatch]);
+```
+
+#### (2) action creator에서 수행하는 경우
+[**thunk**](https://redux.js.org/usage/writing-logic-thunks)를 사용한다
+
+**thunk**란, 프로그래밍에서 "지연 작업을 하는 코드"를 의미한다. 즉, 다른 작업이 완료될 때까지 작업을 지연시키는 단순한 함수라고 할 수 있다.
+당장 어떤 로직을 실행하지 않고, 나중에 실행할 수 있도록 코드를 작성할 수 있다.
+
+redux에서 **thunk**는, redux 상태의 `dispatch`와 `getState` 메소드와 상호작용할 수 있도록 코드를 작성하는 패턴을 의미한다.
+
+```javascript
+// src/App.js
+import { sendCartData } from './store/cart';
+
+let isInitial = true;
+
+useEffect(() => {
+	if (isInitial) {
+		isInitial = false;
+		return;
+	}
+
+	dispatch(sendCartData(cart));
+}, [cart, dispatch]);
+```
+
+```javascript
+// src/store/cart.js
+export const sendCartData = (cart) => {
+	return async (dispatch) => {
+		dispatch(uiActions.showNotification({
+			status: 'pending',
+			title: 'Sending...',
+			message: 'Sending cart data!'
+		}));
+
+	const sendRequest = async () => {
+		const response = await fetch('FIREBASE_URL', {
+			method: 'PUT',
+			body: JSON.stringify(cart)
+		})
+
+		if (!response.ok) {
+			throw new Error('Sending cart data failed.');
+		}
+	}
+	
+	try {
+		await sendRequest()
+		
+		dispatch(uiActions.showNotification({
+			status: 'success',
+			title: 'Success!',
+			message: 'Sent cart data successfully!'
+		}));
+	} catch (error) {
+		dispatch(uiActions.showNotification({
+			status: 'error',
+			title: 'Error!',
+			message: 'Sending cart data failed!'
+		}));
+	  }
+	}
+};
+```
+
+> [!faq] Thunk를 사용하는 이유?
+> redux reducer는 side effect를 포함해서는 안된다.
+> 그러나 실제 어플리케이션은 side ffect를 포함한 로직을 필요로 한다. 이러한 로직을 UI 계층에서 분리하기 위해 thunk를 사용할 수 있다.
