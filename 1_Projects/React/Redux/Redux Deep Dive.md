@@ -21,6 +21,10 @@
 #### (1) 컴포넌트에서 수행하는 경우
 ```javascript
 // src/App.js
+import { useSelector } from 'react-redux';
+
+const cart = useSelector((state) => state.cart);
+
 let isInitial = true;
 
 useEffect(() => {
@@ -73,7 +77,7 @@ redux에서 **thunk**는, redux 상태의 `dispatch`와 `getState` 메소드와 
 
 ```javascript
 // src/App.js
-import { sendCartData } from './store/cart';
+import { sendCartData } from './store/cartActions';
 
 let isInitial = true;
 
@@ -88,7 +92,7 @@ useEffect(() => {
 ```
 
 ```javascript
-// src/store/cart.js
+// src/store/cartActions.js
 export const sendCartData = (cart) => {
 	return async (dispatch) => {
 		dispatch(uiActions.showNotification({
