@@ -68,7 +68,9 @@ function isBirdReal(bird: Bird | undefined) {
 }
 ```
 
-여기서 `bird is Bird` 가 type predicate이다. 이는 만약 위 함수가 `true`를 리턴한다면, `bird` 변수는 `Bird` 타입이라는 것을 의미한다. (즉, `value is type`)
+여기서 `bird is Bird` 가 type predicate이다.  
+이는 만약 위 함수가 `true`를 리턴한다면, `bird` 변수는 `Bird` 타입이라는 것을 의미한다.  
+(즉, `value is type`)
 
 `Array.prototype.filter` 의 타입 명세는 type predicate를 진행해, 수행 결과가 더 명확한 타입을 갖고 타입 체크 과정을 통과하게 된다.
 
@@ -187,7 +189,7 @@ function doSomething(myValue) {
 ```
 
 위 코드에서 `SomeType`은 런타임에 존재하지 않으므로, import되지 않을 것이다.  
-대신 namespace import를 사용할 수 있다
+대신 namespace import를 사용할 수 있다.
 
 ```javascript
 import * as someModule from "./some-module";
