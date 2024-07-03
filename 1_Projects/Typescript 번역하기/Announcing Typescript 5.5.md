@@ -28,7 +28,7 @@ function makeNationalBirdCall(country: string) {
 
 위와 같이 `undefined` 케이스를 핸들링하면, 코드가 더 복잡하고 지저분해진다.
 
-과거에는, 배열에 이런 식으로 타입을 정의하는 것이 훨씬 까다로웠다.
+과거에는, 배열에 이런 식으로 타입을 정의하는 것이 훨씬 까다로웠다.  
 아래 코드는 이전 버전에서 에러를 발생시킨다.
 ```tsx
 function makeBirdCalls(countries: string[]) {
@@ -43,7 +43,7 @@ function makeBirdCalls(countries: string[]) {
 }
 ```
 
-위 코드는 논리적으로는 완벽하지만, 타입스크립트에서는 에러가 발생한다.
+위 코드는 논리적으로는 완벽하지만, 타입스크립트에서는 에러가 발생한다.  
 5.5버전에서는 정상적으로 작동한다
 ```tsx
 function makeBirdCalls(countries: string[]) {
@@ -59,7 +59,7 @@ function makeBirdCalls(countries: string[]) {
 ```
 `birds` 변수의 타입이 더 정확해졌다.
 
-이는 타입스크립트가 `filter` 함수에 대해 [type predicate](https://www.typescriptlang.org/docs/handbook/2/narrowing.html#using-type-predicates)를 추론하기 때문이다.
+이는 타입스크립트가 `filter` 함수에 대해 [type predicate](https://www.typescriptlang.org/docs/handbook/2/narrowing.html#using-type-predicates)를 추론하기 때문이다.  
 아래처럼 함수를 떼어내면 더 명확히 알 수 있다.
 ```tsx
 // function isBirdReal(bird: Bird | undefined): bird is Bird
@@ -88,14 +88,14 @@ const isNumber = (x: unknown) => typeof x === 'number';
 const isNonNullish = <T,>(x: T) => x != null;
 ```
 
-이전에는, 타입스크립트는 위 함수들이 단지 `boolean` 타입을 리턴한다고만 추론했을 것이다. 
+이전에는, 타입스크립트는 위 함수들이 단지 `boolean` 타입을 리턴한다고만 추론했을 것이다.  
 이제는 `x는 number 타입` 또는 `x는 NonNulable<T>` 와 같이 type predicate 를 추론하게 된다.
 
 type predicate는 “if and only if” 구문을 갖는다. 만약 함수가 `x is T` 를 리턴한다면 이는 다음을 의미한다.
 1. 만약 함수가 `true` 를 리턴하면 `x` 는 `T` type 이다.
 2. 만약 함수가 `false` 를 리턴하면 `x` 는 `T` type을 갖지 않는다.
 
-type predicate가 추론되기를 기대하지만 그렇지 않다면, 두번째 규칙을 위반하는 것일수도 있다.
+type predicate가 추론되기를 기대하지만 그렇지 않다면, 두번째 규칙을 위반하는 것일수도 있다.  
 이는 종종 진실성(truthiness) 체크로 인한 결과이다.
 ```tsx
 function getClassroomAverage(students: string[], allScores: Map<string, number>) {
@@ -109,10 +109,10 @@ function getClassroomAverage(students: string[], allScores: Map<string, number>)
 }
 ```
 
-Typescript는 `score => !!score` 에 대해 type predicate를 추론하지 못한다.
-만약 이 구문이 `true` 를 리턴하면, `score` 는 `number` 타입인 것이다.
-하지만 만약 `false` 를 리턴하면, `score` 는 `undefined` 이거나 `number` (정확히는 `0`)인 것이다.
-이는 함수가 목표로 하는 평균 점수를 구하는 데 문제를 야기하게 된다.
+Typescript는 `score => !!score` 에 대해 type predicate를 추론하지 못한다.  
+만약 이 구문이 `true` 를 리턴하면, `score` 는 `number` 타입인 것이다.  
+하지만 만약 `false` 를 리턴하면, `score` 는 `undefined` 이거나 `number` (정확히는 `0`)인 것이다.  
+이는 함수가 목표로 하는 평균 점수를 구하는 데 문제를 야기하게 된다.  
 (0점 학생이 걸러지면 학생 수는 줄어들고 그만큼 평균 점수는 올라가기 때문에!)
 
 따라서, 위 함수에서 `undefined` 를 걸러내는 것이 좋다.
@@ -126,11 +126,11 @@ function getClassroomAverage(students: string[], allScores: Map<string, number>)
 }
 ```
 
-위와 같은 진실성 검사는 모호하지 않은 객체 타입에 대해 type predicate를 추론하게 된다.
+위와 같은 진실성 검사는 모호하지 않은 객체 타입에 대해 type predicate를 추론하게 된다.  
 함수는 반드시 `boolean` 을 리턴해야 type predicate의 추론 후보가 될 수 있다. (`x ⇒ !!x` 는 될지 몰라도 `x => x` 는 안 된다.)
 
-명시적 type predicate는 이전과 같이 동작한다.
-Typescript는 동일한 type predicate에 대한 추론 여부는 체크하지 않는다.
+명시적 type predicate는 이전과 같이 동작한다.  
+Typescript는 동일한 type predicate에 대한 추론 여부는 체크하지 않는다.  
 명시적 type predicate(”is”)는 type assertion(”as”) 보다 안전하지 않다.
 
 Typescript가 더 상세하게 type을 추론한다면 돌아가는 코드도 안 돌아가게 될 수 있다.
@@ -166,7 +166,7 @@ function f1(obj: Record<string, unknown>, key: string) {
 
 ---
 ## JSDoc `@import` 태그
-자바스크립트 파일 내에서 오로지 타입 체크를 위해 무언가를 import 하는 것은 정말 귀찮은 작업이다. 
+자바스크립트 파일 내에서 오로지 타입 체크를 위해 무언가를 import 하는 것은 정말 귀찮은 작업이다.  
 특정 타입이 필요할지라도 런타임에 없다면 사용할 수도 없다.  
 (타입스크립는 정적 타입 언어로 컴파일 시에 타입 검사가 이루어지지만, 자바스크립트는 실행 중에 모든 것이 평가되고 적용되는 동적 언어)
 ```javascript
@@ -186,7 +186,7 @@ function doSomething(myValue) {
 }
 ```
 
-위 코드에서 `SomeType`은 런타임에 존재하지 않으므로, import되지 않을 것이다. 
+위 코드에서 `SomeType`은 런타임에 존재하지 않으므로, import되지 않을 것이다.  
 대신 namespace import를 사용할 수 있다
 
 ```javascript
@@ -200,7 +200,7 @@ function doSomething(myValue) {
 }
 ```
 
-그렇지만 여전히 `some-module`이 import되어야 한다. 
+그렇지만 여전히 `some-module`이 import되어야 한다.  
 대신 JSDoc 주석에 `import(...)`를 사용할 수 있다.
 ```javascript
 /**
