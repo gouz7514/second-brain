@@ -254,3 +254,46 @@ function doSomething(myValue) {
 ```
 
 ---
+## Regular Expression Syntax Checking
+지금까지 Typescript는 코드 내에 있는 많은 정규식들을 생략해왔다.  
+정규식은 기술적으로 다른 문법을 가지고 있으며, 굳이 Typescript가 이런 정규식들을 자바스크립트의 초기 버전으로 컴파일할 필요가 없었기 때문이다.  
+그러나, 이는 정규식 내의 많은 문제점이 발생되지 않을 수 있게 되어 결국은 에러로 이어질 수 있다.
+
+이제는 Typescript가 정규식에 대해 기본적인 문법 체크를 하게 된다.
+```typescript
+let myRegex = /@robot(\s+(please|immediately)))? do some task/;
+//                                            ~
+// error!
+// Unexpected ')'. Did you mean to escape it with backslash?
+```
+
+간단한 예시지만 이를 통해 많은 실수를 잡아낼 수 있다.  
+Typescript의 체크 과정은 단순한 구문 검사보다 조금 더 나아가, 예를 들어 존재하지 않는 역참조(backreferences)와 관련된 문제도 잡아낼 수 있다.
+```typescript
+let myRegex = /@typedef \{import\((.+)\)\.([a-zA-Z_]+)\} \3/u;
+//                                                        ~
+// error!
+// This backreference refers to a group that does not exist.
+// There are only 2 capturing groups in this regular expression.
+```
+
+```typescript
+let myRegex = /@typedef \{import\((?<importPath>.+)\)\.(?<importedEntity>[a-zA-Z_]+)\} \k<namedImport>/;
+//                                                                                        ~~~~~~~~~~~
+// error!
+// There is no capturing group named 'namedImport' in this regular expression.
+```
+
+또한, 대상 ECMAScript 버전보다 최신인 정규 표현식이 사용될 때도 인식할 수 있다.
+```typescript
+let myRegex = /@typedef \{import\((?<importPath>.+)\)\.(?<importedEntity>[a-zA-Z_]+)\} \k<importedEntity>/;
+//                                  ~~~~~~~~~~~~         ~~~~~~~~~~~~~~~~
+// error!
+// Named capturing groups are only available when targeting 'ES2018' or later.
+```
+
+정규 표현식 플래그(i, g 와 같은)에 대해서도 마찬가지다.
+
+위와 같은 체크 과정은 정규 표현식 리터럴에 대해서만 한정된다. `new RegExp`로 선언하는 경우 해당 문자열에 대해 체크하지 않는다.
+
+---
