@@ -4,7 +4,7 @@
 ---
 ## Inferred Type Predicates
 
-타입스크립트는 변수의 타입이 코드 내에서 어떻게 변하는지 추적하는 과정을 거친다
+타입스크립트는 변수의 타입이 코드 내에서 어떻게 변하는지 추적하는 과정을 거친다.
 ```tsx
 interface Bird {
     commonName: string;
@@ -26,7 +26,7 @@ function makeNationalBirdCall(country: string) {
 }
 ```
 
-위와 같이 `undefined` 케이스를 핸들링하면, 코드가 더 복잡하고 지저분해진다
+위와 같이 `undefined` 케이스를 핸들링하면, 코드가 더 복잡하고 지저분해진다.
 
 과거에는, 배열에 이런 식으로 타입을 정의하는 것이 훨씬 까다로웠다.
 아래 코드는 이전 버전에서 에러를 발생시킨다.
@@ -43,7 +43,7 @@ function makeBirdCalls(countries: string[]) {
 }
 ```
 
-위 코드는 논리적으로는 완벽하지만, 타입스크립트에서는 에러가 발생한다
+위 코드는 논리적으로는 완벽하지만, 타입스크립트에서는 에러가 발생한다.
 5.5버전에서는 정상적으로 작동한다
 ```tsx
 function makeBirdCalls(countries: string[]) {
@@ -68,7 +68,7 @@ function isBirdReal(bird: Bird | undefined) {
 }
 ```
 
-여기서 `bird is Bird` 가 type predicate이다. 이는 만약 위 함수가 `true`를 리턴한다면, `bird` 변수는 `Bird` 타입이라는 것을 의미한다 (즉, `value is type`)
+여기서 `bird is Bird` 가 type predicate이다. 이는 만약 위 함수가 `true`를 리턴한다면, `bird` 변수는 `Bird` 타입이라는 것을 의미한다. (즉, `value is type`)
 
 `Array.prototype.filter` 의 타입 명세는 type predicate를 진행해, 수행 결과가 더 명확한 타입을 갖고 타입 체크 과정을 통과하게 된다.
 
@@ -79,7 +79,7 @@ function isBirdReal(bird: Bird | undefined) {
 3. 함수가 파라미터를 변형하지 않는 경우
 4. 함수가 파라미터를 정제하는 `boolean` 표현식을 리턴하는 경우
 
-type predicate의 추가 예시를 들자면 다음과 같다
+type predicate의 추가 예시를 들자면 다음과 같다.
 ```tsx
 // const isNumber: (x: unknown) => x is number
 const isNumber = (x: unknown) => typeof x === 'number';
@@ -88,15 +88,15 @@ const isNumber = (x: unknown) => typeof x === 'number';
 const isNonNullish = <T,>(x: T) => x != null;
 ```
 
-이전에는, 타입스크립트는 위 함수들이 단지 `boolean` 타입을 리턴한다고만 추론했을 것이다.
+이전에는, 타입스크립트는 위 함수들이 단지 `boolean` 타입을 리턴한다고만 추론했을 것이다. 
 이제는 `x는 number 타입` 또는 `x는 NonNulable<T>` 와 같이 type predicate 를 추론하게 된다.
 
-type predicate는 “if and only if” 구문을 갖는다. 만약 함수가 `x is T` 를 리턴한다면 이는 다음을 의미한다
+type predicate는 “if and only if” 구문을 갖는다. 만약 함수가 `x is T` 를 리턴한다면 이는 다음을 의미한다.
 1. 만약 함수가 `true` 를 리턴하면 `x` 는 `T` type 이다.
 2. 만약 함수가 `false` 를 리턴하면 `x` 는 `T` type을 갖지 않는다.
 
 type predicate가 추론되기를 기대하지만 그렇지 않다면, 두번째 규칙을 위반하는 것일수도 있다.
-이는 종종 진실성(truthiness) 체크로 인한 결과이다
+이는 종종 진실성(truthiness) 체크로 인한 결과이다.
 ```tsx
 function getClassroomAverage(students: string[], allScores: Map<string, number>) {
   const studentScores = students
@@ -142,7 +142,7 @@ const nums = [1, 2, 3, null, 5].filter(x => x !== null);
 nums.push(null);  // ok in TS 5.4, error in TS 5.5
 ```
 
-위에 대한 해결책은 type에 explicit type annotation을 사용하는 것이다
+위에 대한 해결책은 type에 explicit type annotation을 사용하는 것이다.
 ```typescript
 const nums: (number | null)[] = [1, 2, 3, null, 5].filter(x => x !== null);
 nums.push(null);  // ok in all versions
@@ -150,7 +150,7 @@ nums.push(null);  // ok in all versions
 
 ---
 ## Control Flow Narrowing for Constant Indexed Access
-> 한국어로 번역하면 "상수 인덱스 접근에 대한 제어 흐름 좁히기.."가 될 것 같다.
+> 한국어로 번역하면 "상수 인덱스 접근에 대한 제어 흐름 좁히기.."가 될 것 같다.  
 > 즉, 상수를 index로 사용해 접근할 때 타입을 점차 좁혀나가는 것을 의미한다.
 
 `obj`와 `key`가 상수일 때 `obj[key]` 형태의 표현식을 좁힐 수 있다.
@@ -162,12 +162,12 @@ function f1(obj: Record<string, unknown>, key: string) {
     }
 }
 ```
-위 코드에서, `obj` 와 `key` 는 변경되지 않기 때문에 typescript는 `typeof` 를 통해 체크를 한 뒤 `obj[key]`의 타입을 `string`으로 좁힐 수 있다.
+위 코드에서 `obj` 와 `key` 는 변경되지 않기 때문에 typescript는 `typeof` 를 통해 체크를 한 뒤 `obj[key]`의 타입을 `string`으로 좁힐 수 있다.
 
 ---
 ## JSDoc `@import` 태그
-자바스크립트 파일 내에서 오로지 타입 체크를 위해 무언가를 import 하는 것은 정말 귀찮은 작업이다.
-특정 타입이 필요할지라도 런타임에 없다면 사용할 수도 없다.
+자바스크립트 파일 내에서 오로지 타입 체크를 위해 무언가를 import 하는 것은 정말 귀찮은 작업이다. 
+특정 타입이 필요할지라도 런타임에 없다면 사용할 수도 없다.  
 (타입스크립는 정적 타입 언어로 컴파일 시에 타입 검사가 이루어지지만, 자바스크립트는 실행 중에 모든 것이 평가되고 적용되는 동적 언어)
 ```javascript
 // ./some-module.d.ts
@@ -186,7 +186,7 @@ function doSomething(myValue) {
 }
 ```
 
-위 코드에서 `SomeType`은 런타임에 존재하지 않으므로, import되지 않을 것이다.
+위 코드에서 `SomeType`은 런타임에 존재하지 않으므로, import되지 않을 것이다. 
 대신 namespace import를 사용할 수 있다
 
 ```javascript
@@ -200,7 +200,7 @@ function doSomething(myValue) {
 }
 ```
 
-그렇지만 여전히 `some-module`이 import되어야 한다.
+그렇지만 여전히 `some-module`이 import되어야 한다. 
 대신 JSDoc 주석에 `import(...)`를 사용할 수 있다.
 ```javascript
 /**
