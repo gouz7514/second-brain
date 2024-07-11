@@ -297,3 +297,70 @@ let myRegex = /@typedef \{import\((?<importPath>.+)\)\.(?<importedEntity>[a-zA-Z
 위와 같은 체크 과정은 정규 표현식 리터럴에 대해서만 한정된다. `new RegExp`로 선언하는 경우 해당 문자열에 대해 체크하지 않는다.
 
 ---
+## Support for New ECMAScript `Set` Methods
+Typescript 5.5는 ECMAScript에 새롭게 등장한 `Set` 타입을 포함한다.
+
+`union`, `intersection`, `difference`, `symmetricDifference`와 같은 메소드들은 `Set`을 인자로 받아 새로운 `Set`을 결과로 만든다.  
+`isSubsetOf`, `isSupersetOf`, `isDisjointFrom`와 같은 메소드든 `Set`을 `boolean`값으로 만든다. 이 메소드들은 원본 `Set`을 변화시키지 않는다.
+
+(자세한 내용은 [원문 코드](https://devblogs.microsoft.com/typescript/announcing-typescript-5-5/#support-for-new-ecmascript-set-methods) 참고)
+
+---
+## Isolated Declarations
+Decliratino files (`.d.ts` 파일들)는Typescript에게 특정 라이브러리와 모듈의 형태를 설명해준다.  
+이 파일들은 라이브러리의 타입 정의를 포함함과 동시에 함수 바디와 같은 상세한 실행 내용 등은 포함하지 않는다.  
+라이브러리를 분석할 필요 없이 Typescript가 라이브러리를 체크할 수 있게 해준다.  
+수기로 declaration files들을 작성할 수 있지만, 더 안전하고 간단한 방법은 `--declaration`  을 사용해 Typescript가 자동으로 이 파일들을 생성하게 하는 것이다.
+
+Typescript 컴파일러와 API는 declaration files 들을 생성하는 역할을 맡아왔으나, 다른 도구를 사용하고 싶거나 전통적인 빌드 프로세스가 확장되지 않는 일부 사용 사례가 있을 수 있다.
+
+---
+## Configuration 파일을 위한 `${configDir}` 템플릿 변수
+베이스가 되는 `tsconfig.json` 파일을 생성하고 이를 여러 코드베이스에서 재사용하는 경우는 매우 흔하다. `extends` 키워드를 사용해 이를 가능하게 한다
+
+```json
+{
+    "extends": "../../tsconfig.base.json",
+    "compilerOptions": {
+        "outDir": "./dist"
+    }
+}
+```
+
+위 방법이 가지는 이슈중 하나는, `tsconfig.json`파일 내의 모든 경로들이 파일 자체에 대해 상대적이라는 것이다. 만약 여러 프로젝트에서  공유되는 공통의 `tsconfig.base.json` 파일이 있다면, 상대 경로는 원하는 것처럼 동작하지 않을 수 있다.
+```json
+{
+    "compilerOptions": {
+        "typeRoots": [
+            "./node_modules/@types"
+            "./custom-types"
+        ],
+        "outDir": "dist"
+    }
+}
+```
+만약 작성자의 의도가 위 파일을 extend 하는 `tsconfig.json` 파일들은
+1. 원하는 `tsconfig.json` 파일에 대해 상대적으로 `dist`  디렉토리를 output으로 가지며,
+2. 원하는 `tsconfig.json`파일에 대해 상대적으로 `custom-types` 디렉토리를
+를 만족해야 한다면, 이는 원하는대로 되지 않을 것이다.  
+`typeRoots`경로는 extend해서 사용하는 프로젝트가 아닌,  공유되는 `tsconfig.base.json`파일의 경로에 대해 상대적이기 때문이다.  
+공통의 파일을 extend하는 모든 프로젝트는 같은 내용의 `outDir`,`typeRoots`를 선언해줘야 한다.  
+이는 여러 프로젝트간 동기화를 어렵게하며, 이는 `typeRoots`외에 `path`와 같은 다른 옵션에서도 발생하는 문제이다.
+
+이를 해결하기 위해 Typescript 5.5에서는 새로운 템플릿 변수 `${configDir}`이 등장하였다.  
+`${configDir}`를 특정 경로 필드에 사용하면, 해당 변수는 컴파일 시에 설정 파일이 포함된 디렉토리르 대체된다. 즉, 다음과 같이 작성할 수 있다.
+```json
+{
+    "compilerOptions": {
+        "typeRoots": [
+            "${configDir}/node_modules/@types"
+            "${configDir}/custom-types"
+        ],
+        "outDir": "${configDir}/dist"
+    }
+}
+```
+
+위 파일을 extend해서 사용하면, 경로들이 원하는 `tsconfig.json`에 대해 상대적이 될 것이다.  이를 통해 configuration file을 공유하고 여러 프로젝트에서 더 용이하게 관리할 수 있게 된다.
+
+---
