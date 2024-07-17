@@ -315,7 +315,7 @@ Decliratino files (`.d.ts` 파일들)는Typescript에게 특정 라이브러리�
 Typescript 컴파일러와 API는 declaration files 들을 생성하는 역할을 맡아왔으나, 다른 도구를 사용하고 싶거나 전통적인 빌드 프로세스가 확장되지 않는 일부 사용 사례가 있을 수 있다.
 
 ---
-## Configuration 파일을 위한 `${configDir}` 템플릿 변수
+## The `${configDir}` Template variable for Configuration Files
 베이스가 되는 `tsconfig.json` 파일을 생성하고 이를 여러 코드베이스에서 재사용하는 경우는 매우 흔하다. `extends` 키워드를 사용해 이를 가능하게 한다
 
 ```json
@@ -364,3 +364,34 @@ Typescript 컴파일러와 API는 declaration files 들을 생성하는 역할�
 위 파일을 extend해서 사용하면, 경로들이 원하는 `tsconfig.json`에 대해 상대적이 될 것이다.  이를 통해 configuration file을 공유하고 여러 프로젝트에서 더 용이하게 관리할 수 있게 된다.
 
 ---
+## Consulting `package.json` Dependencies for Declaration Files Generation
+Typescript에서는 아래와 같은 에러가 종종 발생한다.
+```
+The inferred type of "X" cannot be named without a reference to "Y". This is likely not portable. A type annotation is necessary.
+```
+
+이는 종종 Typescript의 declaration file 생성이 명시적으로 import되지 않은 파일의 내용에서 자신을 발견하는 경우에 발생한다.  
+이런 파일에 대해 import를 하는 것은 경로가 상대 경로인 경우 위험할 수 있다. 그러나 `package.json`의 dependencies(또는 `peerDependencies`, `optionalDependencies`)에 명시된 dependencies를 사용하는 경우는 이러한 import 문을 사용하는 것이 안전할 수 있다.
+
+Typescript 5.5에서는 이러한 경우에 더 관대해져서, 오류가 발생하지 않게 된다.
+
+- [관련 이슈](https://github.com/microsoft/TypeScript/issues/42873), [관련 PR](https://github.com/microsoft/TypeScript/pull/58176)
+
+---
+## Editor and Watch-Mode Reliability Improvements
+Typescript는 `--watch`  모드와 코드 에디터 integration이 더 신뢰성 있도록 몇가지 새로운 기능을 추가하고 기존 로직을 수정했다. 이는 TSServer 혹은 editor의 재시작 현상을 덜 발생시킬 것이다.
+
+### Correctly Refresh Editor Errors in Configuration Files
+Typescript는 `tsconfig.json` 파일에 대해 에러를 발생시킬 수 있다.  
+그러나 이 에러는 프로젝트의 로딩 과정에서 발생하며, editor는 일반적으로 `tsconfig.json` 파일에 대한 에러를 직접 발생시키지 않는다. 이는 즉 `tsconfig.json` 파일에서 발생한 에러가 모두 수정이 되어도, Typescript가 비어있는 error 상태를 갱신하지 않기 때문에, 유저가 editor를 새로고침하지 않는 이상 error를 계속 보게 된다.
+
+Typescript 5.5는 이 현상을 해결하기 위해 event를 발생시킨다. [PR 참고](https://github.com/microsoft/TypeScript/pull/58120)
+
+### Better Handling for Deletes Followed by Immediate Writes
+
+
+### Symlinks are Tracked in Failed Resolutions
+
+
+### Project References Contribute to Auto-Imports
+
