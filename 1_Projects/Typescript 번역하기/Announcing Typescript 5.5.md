@@ -388,10 +388,92 @@ Typescript는 `tsconfig.json` 파일에 대해 에러를 발생시킬 수 있다
 Typescript 5.5는 이 현상을 해결하기 위해 event를 발생시킨다. [PR 참고](https://github.com/microsoft/TypeScript/pull/58120)
 
 ### Better Handling for Deletes Followed by Immediate Writes
+어떤 도구들은 파일을 덮어쓰는 대신, 해당 파일을 지우고 새로 만드는 방식을 채택한다. `npm ci` 명령어가 바로 이런 방식으로 동작한다.
 
+이 방식은 이러한 도구들에는 효율적일 수 있지만, 감시(watch)중인 항목을 삭제하면 해당 항목과 그 모든 전이적 의존성을 제거할 수 있는 Typescript의 편집기 시나리오에서는 문제가 될 수 있다.
+
+Typescript 5.5는 삭제된 프로젝트의 일부를 새로운 생성 이벤트가 감지될 때까지 유지하는 더 정교한 접근 방식을 가지게 된다. 이러한 방식은 `npm ci`와 같은 명령어가 Typescript와 더 잘 동작하게 한다. 더 자세한 정보는 [여기로](https://github.com/microsoft/TypeScript/pull/57492)
 
 ### Symlinks are Tracked in Failed Resolutions
+Typescript가 모듈을 해석하지 못할 때, 모듈이 나중에 추가될 경우를 대비해 해석에 실패한 경로를 살펴볼 필요가 있다. 이전에는 심볼릭 링크된 디렉토리에 대해서는 이 작업이 수행되지 않았고, 이로 인해 하나의 프로젝트에서 빌드가 일어났을 때 다른 프로젝트에서 이를 인식하지 못하는 모노레포와 같은 시나리오에서 신뢰성 문제가 발생할 수 있었다. Typescript 5.5에서는 이러한 문제가 해결되어, 에디터를 자주 다시 시작할 필요가 없을 것이다.
 
+[PR에서 더 자세한 정보 알아보기!](https://github.com/microsoft/TypeScript/pull/58139)
 
 ### Project References Contribute to Auto-Imports
+auto import는 더 이상 프로젝트 reference 설정에서 종속 프로젝트에 적어도 하나의 명시적인 import를 요구하지 않는다. 대신에, `tsconfig.json`의 `references` 필드에 나열된 항목에 대해 auto import 완성이 제대로 작동해야 한다.
 
+[PR에서 더 자세한 정보 알아보기](https://github.com/microsoft/TypeScript/pull/55955)
+
+---
+## Performance and Size Optimizations
+### Monomorphized Objects in Language Service and Public API
+
+### Monomorphized Control Flow Nodes
+
+### Optimizations on our Control Flow Graph
+
+### Skipped Checking in `transpileModule` and `transpileDeclaration`
+
+### Typescript Package Size Reduction
+
+### Node Reuse in Declaration Emit
+
+### Caching Contextual Types from Discriminated Unions
+
+---
+## Easier API Consumption from ECMAScript Modules
+이전에는 Node.js에서 ECMAScript 모듈을 작성할 때, named import는 Typescript 패키지에서 사용할 수 없었다.
+```typescript
+import { createSourceFile } from "typescript"; // ❌ error
+
+import * as ts from "typescript";
+ts.createSourceFile // ❌ undefined???
+
+ts.default.createSourceFile // ✅ works - but ugh!
+```
+
+이는 [cjs-module-lexer](https://github.com/guybedford/es-module-lexer)가 Typescript가 생성한 CommonJS 코드를 해석하지 못했기 때문이다. 이 문제가 해결되어 이제 사용자는 Node.js의 ECMAScript 모듈에서 Typescript npm 패키지로부터 named import를 사용할 수 있다.
+
+
+---
+## The `transpileDeclaration` API
+Typescript의 API는 `transpileModule`이라는 함수를 제공한다. 이 함수는 하나의 Typescript 파일을 쉽게 컴파일할 수 있도록 설계되었다. 그러나 전체 프로그램에 대한 접근 권한이 없기 때문에, 코드가 `isolateModules` 옵션에서 오류를 일으키는 경우 올바른 결과값을 만들어내지 못할 수 있다.
+
+Typescript 5.5에서는 `transpileDeclaration`이라는 새로운 비슷한 API가 추가되었다. 이 API는 `transpileModule`과 비슷하지만, 특정 원본 텍스트를 기반으로 단일 declaration file을 생성하도록 설계되었다. `transpileModule`과 같이 전체 프로그램에 대한 접근 권한은 없으며, 비슷한 주의 사항이 적용된다. 즉, 입력 코드가 `isolatedDeclarations`  옵션 하에서 오류가 없을 때만 정확한 선언 파일을 생성할 수 있다.
+
+원하는 경우, 이 함수는 `isolatedDeclarations`  모드에서 모든 파일에 걸쳐 declaration 생성을 병렬화하는데 사용할 수 있다.
+
+더 자세한 정보는 [PR에서 확인](https://github.com/microsoft/TypeScript/pull/58261)
+
+---
+## Notable Behavioral Changes
+이 섹션은 업그레이드로 인해 변경된, 이해하고 알고 있어야 할 변경사항에 대해 다룬다. deprecation, removal 혹은 새로운 제한 사항이 될 수도 있으며, 기능적으로 개선된 버그 수정이 포함될 수 있지만, 이는 새로운 오류를 야기해 기존 빌드에 영향을 미칠 수도 있다.
+### Disabling Features Deprecated in Typescript 5.0
+Typescript 5.0에서는 다음 옵션과 동작이 deprecate 되었다.
+- `charset`
+- `target: ES3`
+- `importsNotUsedAsValues`
+- `noImplicitUseStrict`
+- `noStrictGenericChecks`
+- `keyofStringsOnly`
+- `suppressExcessPropertyErrors`
+- `suppressImplicitAnyIndexErrors`
+- `out`
+- `preserveValueImports`
+- `prepend` in project references
+- implicitly OS-specific `newLine`
+
+deprecate된 위 옵션들을 사용하려면, `5.0` 과 함께 `ignoreDeprecations` 라는 새로운 옵션을 선언해야 한다.
+
+Typescript 5.5에서는, 이 옵션들은 더 이상 동작하지 않는다. tsconfig 내에 정의할 수는 있지만, Typescript 6.0 부터는 에러로 취급될 것이다. 향후 예정된 deprecation 전략에 대해서는 [Flag Deprecatino Plan](https://github.com/microsoft/TypeScript/issues/51000)을 참고.
+
+[이러한 사용 중단 계획에 대한 자세한 정보는 Github에서 확인할 수 있으며](https://github.com/microsoft/TypeScript/issues/51909), 코드를 적절히 조정하는 방법에 대한 제안도 포함되어 있다.
+
+### `lib.d.ts` Changes
+DOM을 위해 생성된 type은 코드의 타입 체크 과정에 영향을 끼칠 수 있다. 더 자세한 정보는 [Typescript 5.5를 위한 DOM 업데이트](https://github.com/microsoft/TypeScript/pull/58211)를 참고
+
+### Strict Parsing for Decorators
+
+### `undefined` is No Longer a Definable Type Name
+
+### Simplified Reference Directive Declaration Emit
