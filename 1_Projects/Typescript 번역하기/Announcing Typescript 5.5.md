@@ -473,7 +473,53 @@ Typescript 5.5에서는, 이 옵션들은 더 이상 동작하지 않는다. tsc
 DOM을 위해 생성된 type은 코드의 타입 체크 과정에 영향을 끼칠 수 있다. 더 자세한 정보는 [Typescript 5.5를 위한 DOM 업데이트](https://github.com/microsoft/TypeScript/pull/58211)를 참고
 
 ### Strict Parsing for Decorators
+Typescript 에서 decorator가 처음으로 도입된 이후, 문법이 더욱 엄격해졌다. Typescript는 이제 허용하는 형식(form)에 대해 더 엄격하다. 기존의 데코레이터는 에러를 방지하기 위해 괄호로 묶어야 할 수도 있다
+```typescript
+class DecoratorProvider {
+    decorate(...args: any[]) { }
+}
+
+class D extends DecoratorProvider {
+    m() {
+        class C {
+            @super.decorate // ❌ error
+            method1() { }
+
+            @(super.decorate) // ✅ okay
+            method2() { }
+        }
+    }
+}
+```
+
+[더 자세한 정보는 여기에서](https://github.com/microsoft/TypeScript/pull/57749)
 
 ### `undefined` is No Longer a Definable Type Name
+Typescript는 내장 타입과 충돌할 수 있는 타입 선언을 허용하지 않아왔다.
+```typescript
+// Illegal
+type null = any;
+// Illegal
+type number = any;
+// Illegal
+type object = any;
+// Illegal
+type any = any;
+```
 
+그러나 버그로 인해, 이는 `undefined` 에 대해서는 적용되지 않았다. 5.5부터는 정상적으로 에러로 처리되게 된다.
+```typescript
+// Now also illegal
+type undefined = any;
+```
+
+`undefined`라는 이름의 타입 선언에 대한 단순 참조는 처음부터 작동하지 않았다. 정의할 수는 있었지만, 이를 자격 없는 타입 이름(unqualified type name)으로 사용할 수는 없었다.
+```typescript
+export type undefined = string;
+export const m: undefined = "";
+//           ^
+// Errors in 5.4 and earlier - the local definition of 'undefined' was not even consulted.
+```
+
+[더 자세한 정보는 여기에서](https://github.com/microsoft/TypeScript/pull/57575)
 ### Simplified Reference Directive Declaration Emit
