@@ -407,18 +407,78 @@ auto import는 더 이상 프로젝트 reference 설정에서 종속 프로젝�
 ---
 ## Performance and Size Optimizations
 ### Monomorphized Objects in Language Service and Public API
+Typescript 5.0에서, `Node` 및 `Symbol` 객체가 일관된 properties들과 초기화 순서를 가지도록 했다. 이를 통해 다양한 작업에서 다형성이 줄어들어, 런타임에서 properties를 더 빠르게 가져올 수 있다.
+
+이 변경을 통해 컴파일러의 속도가 크게 향상되는 것을 목격했다. 그러나, 이러한 변경의 대부분은 데이터 구조의 내부 할당자(allocator)에 대해 수행되었다. Language Service 및 Typescript의 공개 API는 특정 객체에 다른 할당자를 사용한다. 이를 통해 language service에서만 사용되는 데이터는 컴파일러에서 사용되지 않으므로 Typescript 컴파일러가 더 가벼워질 수 있었다.
+
+Typescript 5.5에서는 Language service와 공개 API에 대해 동일한 단형화 작업이 수행되었다. 이는 에디터와 타입스크립트 API를 사용하는 빌드 도구가 상당히 빨라진다는 것을 의미한다. 실제로 벤치마크에서 공개 API의 할당자를 사용할 때 빌드 시간이 5~8% 빨라지고, language service 작업이 10~20% 빨라지는 것을 확인했다. 이로 인해 메모리의 사용이 증가할 수 있지만, 충분히 가치가 있다고 생각하며 메모리 오버헤드를 줄일 방법을 찾을 계획이다.
+
+[더 자세한 정보는 여기로](https://github.com/microsoft/TypeScript/pull/58045)
+
+(내용 추가)
+- 할당자(allocator) ([위키백과 - 할당자](https://ko.wikipedia.org/wiki/%ED%95%A0%EB%8B%B9%EC%9E%90))
+	- 프로그래밍에서 메모리 할당을 관리하는 컴포넌트 또는 알고리즘
+- language service
+	- 개발자가 코드를 작성하는 동안 보다 향상된 개발 경험을 제공하기 위한 기능 모음
+	- [TypeScript-Compiler-Notes : GLOSSARY.md](https://github.com/microsoft/TypeScript-Compiler-Notes/blob/main/GLOSSARY.md) 참고
 
 ### Monomorphized Control Flow Nodes
+Typescript 5.5에서는 제어 흐름 그래프의 노드가 단형화되어 항상 일관된 형태를 유지하도록 변경된다. 이를 통해, 체크 시간이 1% 정도 단축된다.
 
+[더 자세한 정보는 여기](https://github.com/microsoft/TypeScript/pull/57977)
+
+(내용 추가)  
+프로그래밍에서 다형성(polymorphism)이란, 프로그램 언어의 각 요소들이 다양한 자료형(type)에 속하는 것이 허가되는 성질을 가리킨다. 반댓말은 단형성으로 프로그램 언어의 각 요소가 한 가지 형태만 가지는 성질을 가리킨다.
+
+즉, 이 변경 사항의 핵심은 기존에 다형적 구조를 가진 컴파일러의 제어 흐름 노드가 단형화되었다는 것이다.
 ### Optimizations on our Control Flow Graph
+많은 경우, 제어 흐름 분석은 새로운 정보를 제공하지 않는 노드를 탐색하게 된다. 특정 노드의 선행 조건에 조기 종료 또는 효과가 없는 경우, 이러한 노드들은 항상 건너뛸 수 있다는 것을 관찰했다. 이에 따라, Typescript는 제어 흐름 그래프를 구성할 때 제어 흐름 분석에 유용한 정보를 제공하는 이전 노드와 연결해 이를 활용한다. 이로 인해 더 평탄한 제어 흐름 그래프가 생성되고 탐색이 더 효율적일 수 있게 된다. 이러한 최적화는 적절한 성능 향상을 제공하며, 특정 코드에서는 빌드 시간이 최대 2% 감소하는 결과를 가져왔다.
+
+[더 자세한 정보는 여기](https://github.com/microsoft/TypeScript/pull/58013)
 
 ### Skipped Checking in `transpileModule` and `transpileDeclaration`
+Typescript의 `transpileModule` API는 단일 Typescript 파일의 내용을 Javascript로 컴파일하는데 사용할 수 있다. 이와 유사하게, `transfileDeclaration` API(아래 참조)는 단일 Typescript 파일에 대한 선언 파일(Declaration files)을 생성하는데 사용할 수 있다. 이러한 API의 문제 중 하나는, Typescript가 결과를 출력하기 전에 내부적으로 전체 타입 검사 과정을 수행한다는 것이었다. 이는 출력 단계에서 사용할 특정 정보를 수집하기 위해 필요했다.
+
+Typescript 5.5에서, 전체 타입 검사를 진행하지 않고 필요한 경우에만 정보를 수집하는 방법을 찾았으며, `transpileModule`과 `transpileDeclaration`은 기본적으로 이 기능을 활성화한다. 이로 인해 [ts-loader](https://www.npmjs.com/package/ts-loader)의 `transpileOnly` 및 [ts-jest](https://www.npmjs.com/package/ts-jest)와 같이 이런 API와 통합되는 도구는 눈에 띄는 속도 향상을 경험할 수 있게 됐다. 우리의 테스트 환경에서, 일반적으로 [`transpileModule`을 사용할 때 빌드 시간이 약 2배 빨라지는 것을 확인했다.](https://github.com/microsoft/TypeScript/pull/58364#issuecomment-2138580690)
 
 ### Typescript Package Size Reduction
+[Typescript 5.0에서 진행한 Module로의 migration](https://devblogs.microsoft.com/typescript/typescripts-migration-to-modules/)을 더 활용하여, [`tsserver.js`와 `typingInstaller.js`가 각각 독립적인 번들을 생성하는 대신 공통 API 라이브러리에서 가져오도록 하여](https://github.com/microsoft/TypeScript/pull/55326) 전체 패키지 크기를 크게 줄였다.
 
+이로 인해 Typescript의 디스크 상 크기는 30.2 MB에서 20.4 MB로 줄어들었고, 압축된 크기는 5.5 MB에서 3.7 MB로 감소했다!
 ### Node Reuse in Declaration Emit
+`isolatedDeclarations` 기능을 지원하기 위해 작업하는 과정에서, Typescript가 선언 파일을 생성할 때 input 소스 코드를 직접 복사하는 빈도를 크게 개선했다.
+
+예를 들어 다음과 같은 코드를 작성한다고 할 때
+```typescript
+export const strBool: string | boolean = "hello";
+export const boolStr: boolean | string = "world";
+```
+
+union 타입은 같지만 그 순서가 다르다. 선언 파일을 생성할 때, Typescript는 두 가지의 가능한 결과를 내놓을 수 있다.
+
+첫번째는 각각 타입에 대해 일관성 있는 표현식을 사용하는 것이다
+```typescript
+export const strBool: string | boolean;
+export const boolStr: string | boolean;
+```
+
+두번째는 쓰인 그대로 type 선언을 재사용하는 것이다
+```typescript
+export const strBool: string | boolean;
+export const boolStr: boolean | string;
+```
+
+두번째 방식이 다음과 같은 이유로 더 선호된다
+- 많은 비슷한 표현들이 있지만, 여전히 선언 파일에서 유지하는 것이 더 낫다는 의도를 담고 있다
+- 타입의 새로운 표현을 생성하는 것은 다소 비용이 들 수 있으므로, 이를 피하는 것이 좋다
+- 사용자가 작성한 타입이 일반적으로 생성된 타입 표현보다 더 짧다.
+
+Typescript 5.5에서는, Typescript가 입력 파일에 작성된 타입을 정확히 그대로 출력할 수 있도록 개선했다. 대부분의 경우, 이러한 개선은 성능 향상 측면에서 눈에 보이지 않을 수 있다. 이전에는 Typescript가 syntax 노드를 새롭게 생성하고 이를 문자열로 직렬화하는 과정이 필요했다. 이제는, Typescript가 원래의 syntax node에서 직접 작업할 수 있게 되어 훨씬 더 저렴하고 빠르다.
 
 ### Caching Contextual Types from Discriminated Unions
+Typescript가 object literal과 같은 표현식의 문맥적 타입을 요청할 때, 종종 유니온 타입을 직면하게 된다. 이런 경우, Typescript는 알려진 값을 가진 속성을 기준으로 union의 구성원을 필터링하려고 한다. 이 작업은 특히 많은 속성으로 구성된 객체를 다룰 때 꽤 비용이 많이 들 수 있다.
+
+Typescript 5.5에서는 [이러한 계산의 대부분을 한 번만 캐시하여 Typescript가 object literal의 모든 속성에 대해 재계산할 필요가 없도록 했다.](https://github.com/microsoft/TypeScript/pull/58372) 이 최적화 덕분에 Typescript 컴파일러 자체를 컴파일하는데 250ms가 단축되었다.
 
 ---
 ## Easier API Consumption from ECMAScript Modules
@@ -433,7 +493,6 @@ ts.default.createSourceFile // ✅ works - but ugh!
 ```
 
 이는 [cjs-module-lexer](https://github.com/guybedford/es-module-lexer)가 Typescript가 생성한 CommonJS 코드를 해석하지 못했기 때문이다. 이 문제가 해결되어 이제 사용자는 Node.js의 ECMAScript 모듈에서 Typescript npm 패키지로부터 named import를 사용할 수 있다.
-
 
 ---
 ## The `transpileDeclaration` API
