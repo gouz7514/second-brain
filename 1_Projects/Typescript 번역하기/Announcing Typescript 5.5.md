@@ -314,6 +314,8 @@ Decliratino files (`.d.ts` 파일들)는Typescript에게 특정 라이브러리�
 
 Typescript 컴파일러와 API는 declaration files 들을 생성하는 역할을 맡아왔으나, 다른 도구를 사용하고 싶거나 전통적인 빌드 프로세스가 확장되지 않는 일부 사용 사례가 있을 수 있다.
 
+[상세한 내용은 원문에서..](https://devblogs.microsoft.com/typescript/announcing-typescript-5-5/#isolated-declarations)
+
 ---
 ## The `${configDir}` Template variable for Configuration Files
 베이스가 되는 `tsconfig.json` 파일을 생성하고 이를 여러 코드베이스에서 재사용하는 경우는 매우 흔하다. `extends` 키워드를 사용해 이를 가능하게 한다
@@ -581,4 +583,64 @@ export const m: undefined = "";
 ```
 
 [더 자세한 정보는 여기에서](https://github.com/microsoft/TypeScript/pull/57575)
+
 ### Simplified Reference Directive Declaration Emit
+declaration file을 생성할 때, Typescript는 필요하다고 판단이 되면 reference directive를 생성한다. 예를 들어, 모든 Node.js 모듈은 전역으로 생성되기 때문에 모듈 해석만으로는 로드할 수 없다. 아래와 같은 파일의 경우는
+```typescript
+import path from "path";
+export const myPath = path.parse(__filename);
+```
+
+원래 코드에 reference directive가 등장하지 않았음에도 다음과 같은 declaration file을 생성하게 된다
+```typescript
+/// <reference types="node" />
+import path from "path";
+export declare const myPath: path.ParsedPath;
+```
+
+Typescript는 또한, 필요하지 않다고 판단이 되면 reference directive를 제거한다. 예를 들어, `jest`로 reference directive를 선언한다고 해도, declaration file을 생성할 때는 reference directive가 필요하지 않을 수 있다. Typescript는 이를 그냥 제거해버린다.
+
+```typescript
+/// <reference types="jest" />
+import path from "path";
+export const myPath = path.parse(__filename);
+```
+
+Typescript는 위 코드가 주어져도 아래와 같은 결과를 만든다.
+```typescript
+/// <reference types="node" />
+import path from "path";
+export declare const myPath: path.ParsedPath;
+```
+
+`isolatedDeclarations` 과정에서, 타입 검사를 하지 않거나 하나 이상의 파일 컨텍스트(file context)를 사용하지 않고 선언 파일을 생성하려고 하는 자들에게 이 로직이 실현 불가능하다는 것을 깨달았다. 또한, 이 동작은 사용자 입장에서도 이해하기 어렵다. 타입 검사 중에 무슨 일이 일어나는지 정확히 알지 않는 한, reference directive가 생성된 파일에 나타나는지 그 여부가 일관되지 않고 예측하기 어렵다. `isolatedDeclarations`가 활성화된 상태에서 declaration file이 다르게 작동하는 것을 방지하기 위해, 우리는 생성 방식을 변경해야 한다는 것을 깨달았다.
+
+[실험](https://github.com/microsoft/TypeScript/pull/57569)을 통해, Typescript가 reference directive를 생성한 거의 모든 경우가 Node.js나 react를 포함시키기 위한 것이라는 것을 발견했다. 이는 최종 사용자가 이미 tsconfig.json의 "types"나 다른 라이브러리의 import를 통해 해당 타입을 참조하고 있을 것이라는 기대가 있는 경우로, 더 이상 이런 reference directive를 생성하지 않아도 문제가 발생할 가능성은 매우 낮다. 이 방식은 이미 `lib.d.ts`에서 사용되고 있다는 점도 주목해야 한다. Typescript는 모듈이 `WeakMap`을 내보낼 때, `lib="es2015"`에 대한 참조를 생성하지 않고, 대신 최종 사용자가 환경의 일부로 이를 포함했을 것이라고 가정한다.
+
+
+라이브러리 작성자가 작성한 reference directive에 대한 [추가 실험](https://github.com/microsoft/TypeScript/pull/57656)을 통해, 거의 모든 reference directive가 제거되어 결과에 나타나지 않는다는 것을 발견했다. 보존된 대부분의 reference directive는 제대로 작동하지 않았으며, 보존될 의도가 없는 것으로 보였다.
+
+이러한 결과를 바탕으로, Typescript 5.5에서는 declaration file을 생성할 때 reference directive를 크게 단순화하기로 결정했다. 보다 일관된 전략을 통해 라이브러리 작성자와 사용자들이 declaration file을 더 잘 제어할 수 있도록 돕고자 한다.
+
+Reference directive는 더 이상 자동으로 생성되지 않는다. `preserve="true"` 속성으로 주석이 추가되지 않는한, 사용자가 작성한 reference directive는 더 이상 보존되지 않는다.
+
+구체적으로 예시를 들자면, 다음과 같은 파일은
+```typescript
+/// <reference types="some-lib" preserve="true" />
+/// <reference types="jest" />
+import path from "path";
+export const myPath = path.parse(__filename);
+```
+
+아래와 같이 생성될 것이다.
+```typescript
+/// <reference types="some-lib" preserve="true" />
+import path from "path";
+export declare const myPath: path.ParsedPath;
+```
+
+이전 버전의 Tyepscript에서는 알려지지 않은 속성을 무시하기 때문에 `preserve="true"` 속성을 더해도 이전 버전과 호환될 것이다.
+
+이 변화로 인해 성능도 개선되었다. 우리의 벤치마크에 따르면, 선언 파일 생성을 활성화한 프로젝트에서 생성(emit) 단계가 1~4% 개선되었다.
+
+---
