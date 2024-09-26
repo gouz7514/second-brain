@@ -99,3 +99,66 @@ if (true || inDebuggingOrDevelopmentEnvironment()) {
 검사 실행 방식 또는 잡아낼 수 있는 버그에 대해서 궁금하다면 [해당 기능에 대한 PR](https://github.com/microsoft/TypeScript/pull/59217)을 살펴보자.
 
 ## Iterator Helper Methods
+JavaScript는 `iterables`와 `iterator` 라는 개념을 가지고 있다
+- `iterables` : `[Symbol.iterator]()`를 호출함으로써 iterate하면서 iterator를 가져올 수 있는 것
+- `iterator` : iterate 과정에서 다음 값을 가져오기 위해 사용할 수 있는 `next()` 메소드를 갖는 것
+
+대체로, `for / of` 문이나 `[...spread]`를 사용할 때는 이런 개념들을 생각하지 않게 된다. 그러나 Typescript는 이것들을 `Iterable` 과 `Iterator` (혹은 이 두가지 모두처럼 동작하는 `IterableIterator`) 타입을 사용해 모델링하며, 이 타입들은 `for / of`와 같은 구문이 작동하기 위해 필요한 최소한의 개념들이다.
+
+`Iterable`은 Javascript의에서 다양한 곳에 사용할 수 있어 편리하지만, 많은 사람들이 배열에서 map, filter, 그리고 특정 이유로 reduce 같은 메소드가 없어서 불편함을 느낀다. 그렇기 때문에 최근 [ECMAScript에서 대부분의 `IterableIterator`에 배열의 여러 메소드를 추가하자는 제안](https://github.com/tc39/proposal-iterator-helpers)이 나왔다. 
+
+예를 들어, 이제부터 모든 생성자는 `map`과 `take` 메소드를 갖는 객체를 만들어낸다.
+```javascript
+function* positiveIntegers() {
+    let i = 1;
+    while (true) {
+        yield i;
+        i++;
+    }
+}
+
+const evenNumbers = positiveIntegers().map(x => x * 2);
+
+// Output:
+//    2
+//    4
+//    6
+//    8
+//   10
+for (const value of evenNumbers.take(5)) {
+    console.log(value);
+}
+```
+
+`keys()`, `values()`, `entries()`, `Map`, `Set` 에 대해서도 마찬가지다.
+```javascript
+function invertKeysAndValues<K, V>(map: Map<K, V>): Map<V, K> {
+    return new Map(
+        map.entries().map(([k, v]) => [v, k])
+    );
+}
+```
+
+새로운 `Iterator` 객체를 확장할 수도 있다.
+```javascript
+/**
+ * Provides an endless stream of `0`s.
+ */
+class Zeroes extends Iterator<number> {
+    next() {
+        return { value: 0, done: false } as const;
+    }
+}
+
+const zeroes = new Zeroes();
+
+// Transform into an endless stream of `1`s.
+const ones = zeroes.map(x => x + 1);
+```
+
+또한 이미 존재하는 `Iterable`과 `Iterator`를 `Iterator.from`을 사용해 새로운 타입으로 변환할 수 있다.
+```javascript
+Iterator.from(...).filter(someFunction);
+```
+
+이 새로운 메소드들은 최신 버전의 Javascript runtime 혹은, 새로운 `Iteratore` 객체를 위한 polyfill을 사용할 때 동작할 것이다.
