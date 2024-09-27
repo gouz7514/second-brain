@@ -162,3 +162,24 @@ Iterator.from(...).filter(someFunction);
 ```
 
 이 새로운 메소드들은 최신 버전의 Javascript runtime 혹은, 새로운 `Iteratore` 객체를 위한 polyfill을 사용할 때 동작할 것이다.
+
+이제 네이밍에 관련해서 이야기할 차례이다.
+
+위에서 언급했듯이 Typescript는 `Iterable`과 `Iterator` 타입을 갖는다. 그러나 앞서 언급했듯이 이런 기능들은 특정 작업이 제대로 작동하도록 보장하는 일종의 "프로토콜" 역할을 한다. 이는 Typescript에서 `Iterable`   또는 `Iterator`로 선언된 모든 값들이 위에서 언급한 메소드를 갖는 것은 아니다.
+
+그러나 `Iterator`라는 새로운 런타임 값이 있다. JavaScript에서 `Iterator`와 `Iterator.prototype`을 실제 값으로 참조할 수 있다. 그러나 Typescript는 타입 검사용으로 `Iterator`라는 것을 이미 정의하고 있기 때문에 둘 사이에 이름 충돌이 발생한다. 이러한 문제로 인해 Typescript는 이런 내장된 iterator(반복자)를 설명하기 위해 별도의 타입을 도입해야 한다.
+
+Typescript 5.6에서는  `IteratorObject`라는 새로운 타입을 도입했으며, 이 타입은 다음과 같이 정의된다
+
+```typescript
+interface IteratorObject<T, TReturn = unknown, TNext = unknown> extends Iterator<T, TReturn, TNext> {
+    [Symbol.iterator](): IteratorObject<T, TReturn, TNext>;
+}
+```
+
+`IteratorObject`의 하위 타입(`ArrayIterator`, `SetIterator`, `MapIterator` 등)을 만들어 내는 빌트인 컬렉션과 메소드, `lib.d.ts` 내의 코어 Javascript와 DOM 타입, 그리고 `@types/node`가 이 새로운 타입을 위해 업데이트되었다.
+
+이와 유사하게, `AsyncIteratorObject` 타입이 추가되어 비슷한 역할을 한다. Javascript에는 아직 `AsyncIterable`에 메서드를 제공하는 런타임 값인 `AsyncIterator`가 존재하지 않지만, [현재 제안 단계](https://github.com/tc39/proposal-async-iterator-helpers)에 있으며 이 새로운 타입은 이를 위해 준비된 것이다.
+
+- [해당 타입 PR 링크](https://github.com/microsoft/TypeScript/pull/58222)
+- [proposal-iterator-helpers](https://github.com/tc39/proposal-iterator-helpers)
