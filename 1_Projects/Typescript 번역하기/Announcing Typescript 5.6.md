@@ -183,3 +183,55 @@ interface IteratorObject<T, TReturn = unknown, TNext = unknown> extends Iterator
 
 - [해당 타입 PR 링크](https://github.com/microsoft/TypeScript/pull/58222)
 - [proposal-iterator-helpers](https://github.com/tc39/proposal-iterator-helpers)
+
+## Strict Builtin Iterator Checks (and `strictBuiltinIteratorReturn`)
+
+`Iterator<T, TReturn>`의 `next()` 메소드를 호출하면, `value`와 `done` 속성을 가진 객체를 리턴한다. 이 객체는 `IteratorResult` 타입으로 모델링되어있다.
+```typescript
+type IteratorResult<T, TReturn = any> = IteratorYieldResult<T> | IteratorReturnResult<TReturn>;
+
+interface IteratorYieldResult<TYield> {
+    done?: false;
+    value: TYield;
+}
+
+interface IteratorReturnResult<TReturn> {
+    done: true;
+    value: TReturn;
+}
+```
+
+위 코드에서 네이밍의 경우, generator 함수의 동작 방식에서 영감을 받았다. generator 함수는 값을 yield(생성 또는 결과값을 출력)할 수 있고 최종 값을 반환할 수 있다. 그러나 yield된 값과 최종 반환 값의 타입은 서로 관련이 없을 수 있다.
+
+```typescript
+function abc123() {
+    yield "a";
+    yield "b";
+    yield "c";
+    return 123;
+}
+
+const iter = abc123();
+
+iter.next(); // { value: "a", done: false }
+iter.next(); // { value: "b", done: false }
+iter.next(); // { value: "c", done: false }
+iter.next(); // { value: 123, done: true }
+```
+
+새로운 `IteratorObject` 타입을 도입하면서, 안전하게 `IteratorObject`를 구현하는데 어려움이 있음을 발견했다. 동시에 `TReturn`이 any 타입인 경우, `IteratorResult` 에서 안전성 문제가 오랫동안 존재해왔다. 예를 들어 `IteratorResult<string, any>`가 있다고 가정하고 value를 사용하게 되면 `string | any` 타입이 되는데, 이는 결국 `any` 타입으로 취급된다.
+
+```typescript
+function* uppercase(iter: Iterator<string, any>) {
+    while (true) {
+        const { value, done } = iter.next();
+        yield value.toUppercase(); // oops! forgot to check for `done` first and misspelled `toUpperCase`
+
+        if (done) {
+            return;
+        }
+    }
+}
+```
+
+모든 반복자에 대한 문제를 수정하는 것은 수많은 변화를 적용해야 하기 때문에 어렵지만, 새로 생성되는 대부분의 `IteratorObject`에서는 이를 개선할 수 있다.
