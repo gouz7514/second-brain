@@ -235,3 +235,154 @@ function* uppercase(iter: Iterator<string, any>) {
 ```
 
 모든 반복자에 대한 문제를 수정하는 것은 수많은 변화를 적용해야 하기 때문에 어렵지만, 새로 생성되는 대부분의 `IteratorObject`에서는 이를 개선할 수 있다.
+
+Typescript 5.6에서는 `BuiltinIteratorReturn`이라는 새로운 본질적인 타입과 `--strictBuiltinIteratorReturn`이라는 새로운 `--strict`-mode 플래그를 도입했다. `IteratorObject`가 `lib.d.ts`와 같은 곳에서 사용될 때는 항상 `TReturn`에 대해 `BuiltinIteratorReturn` 타입으로 작성된다 (하지만 더 구체적인 MapIterator, ArrayIterator, SetIterator가 더 자주 사용된다)
+
+```typescript
+interface MapIterator<T> extends IteratorObject<T, BuiltinIteratorReturn, unknown> {
+    [Symbol.iterator](): MapIterator<T>;
+}
+
+// ...
+
+interface Map<K, V> {
+    // ...
+
+    /**
+     * Returns an iterable of key, value pairs for every entry in the map.
+     */
+    entries(): MapIterator<[K, V]>;
+
+    /**
+     * Returns an iterable of keys in the map
+     */
+    keys(): MapIterator<K>;
+
+    /**
+     * Returns an iterable of values in the map
+     */
+    values(): MapIterator<V>;
+}
+```
+
+기본적으로 `BuiltinIteratorReturn`은 `any` 타입이지만, `--stirctBuiltinIteratorReturn` 모드라면 `undefined` 타입이다. 이 모드에서는 `BuiltinIteratorReturn` 을 사용하면 위 예시는 올바르게 에러를 발생시킨다.
+
+```typescript
+function* uppercase(iter: Iterator<string, BuiltinIteratorReturn>) {
+    while (true) {
+        const { value, done } = iter.next();
+        yield value.toUppercase();
+        //    ~~~~~ ~~~~~~~~~~~
+        // error! ┃      ┃
+        //        ┃      ┗━ Property 'toUppercase' does not exist on type 'string'. Did you mean 'toUpperCase'?
+        //        ┃
+        //        ┗━ 'value' is possibly 'undefined'.
+
+        if (done) {
+            return;
+        }
+    }
+}
+```
+
+`BuiltinIteratorReturn`이 통상적으로 `lib.d.ts` 내에서 `IteratorObject`와 같이 등장하는 것을 보게 될 것이다. 가능한 경우 `TReturn`에 대해 더 명확하게 자성하는 것을 권장하낟.
+
+더 자세한 정보는 [여기](https://github.com/microsoft/TypeScript/pull/58243)서 확인할 수 있다.
+
+## Support for Arbitrary Module Identifiers
+Javascript는 모듈이 문자열 리터럴로 유효하지 않은 식별자 이름을 바인딩하여 export하는 것을 허용한다.
+```javascript
+const banana = "🍌";
+
+export { banana as "🍌" };
+```
+
+이와 유사하게, Javascript는 임의의 이름을 가진 import를 가져와 유효한 식별자에 바인딩하는 것을 허용한다.
+```javascript
+import { "🍌" as banana } from "./foo"
+
+/**
+ * om nom nom
+ */
+function eat(food: string) {
+    console.log("Eating", food);
+};
+
+eat(banana);
+```
+
+다른 언어들은 유효한 식별자를 정의하는 규칙이 다를 수 있기 때문에 다른 언어들과의 상호 운용성에서 유용하다. 또한 [esbuild의 inject 기능](https://esbuild.github.io/api/#inject)처럼 코드를 생성하는 도구들에게도 유용할 수 있다.
+
+Typescript 5.6부터는 이런 임의의 모듈 식별자를 사용할 수 있다. 변경 사항은 [여기](https://github.com/microsoft/TypeScript/pull/58640)에서 확인 가능하다.
+
+## The --noUncheckedSideEffectImports Option
+Javascript에서는 아무런 값을 가져오지 않음에도 해당 모듈을 `import`하는 것이 가능하다.
+```javascript
+import "some-module";
+```
+
+이러한 import는 side effect를 실행해야만 유용한 동작을 제공할 수 있기 때문에 side effect import라고 불린다. (전역 변수 등록, 프로토타입에 polyfill 추가)
+
+Typescript에서는 이 문법에 대해 꽤 이상한 점이 있다.  
+만약 `import`가 유효한 소스 파일로 해석될 수 있다면, Typescript는 해당 파일을 로드하고 체크했다. 반면, 소스 파일을 찾을 수 없으면 Typescript는 아무 경고 없이 해당 import를 무시했다.
+
+이는 놀라운 동작이지만 부분적으로는 Javascript 생태계에서 패턴을 모델링한 결과이다. 예를 들어, 번들러에서 CSS나 다른 에셋을 로드하기 위해 특별한 로더들과 함께 사용되기도 했다. 다음과 같이 번들러가 특정 `.css` 파일을 포함하도록 설정될 수 있다.
+
+```typescript
+import "./button-component.css";
+
+export function Button() {
+    // ...
+}
+```
+
+그럼에도, 이는 side effect import에서 발생할 수 있는 오타를 감출 수 있다. 그래서 Typescript 5.6에서는 이러한 경우를 잡아내기 위해 `--noUncheckedSideEffectImports`라는 새로운 컴파일러 옵션을 도입했다. 이 옵션이 활성화되면, side effect import에 대해 소스 파일을 찾을 수 없을 때 오류를 발생시킨다.
+
+```typescript
+import "oops-this-module-does-not-exist";
+//     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// error: Cannot find module 'oops-this-module-does-not-exist' or its corresponding type declarations.
+```
+
+이 옵션을 활성화하면, 위 코드처럼 동작하던 코드가 에러를 발생시킬 수 있다. 이를 해결하기 위해, 단순히 에셋에 대해  side effect import를 작성하려는 사용자들은 와일드카드 지정자가 포함된 _ambient module declaration_ 을  작성하는 것이 더 나은 방법일 수 있다. 전역 파일에 다음과 같이 작성할 수 있다.
+
+```typescript
+// ./src/globals.d.ts
+
+// Recognize all CSS files as module imports.
+declare module "*.css" {}
+```
+
+이미 프로젝트 내에 이런 파일이 존재할 수 있다. `vite init` 명령어를 실행하면 이와 비슷한 `vite-env.d.ts` 파일이 생성된다.
+
+해당 옵션은 기본적으로 off이지만 한번 시도해볼 것을 권장한다.
+
+더 자세한 정보는 [여기](https://github.com/microsoft/TypeScript/pull/58941)서 확인할 수 있다.
+
+## The --noCheck Option
+Typescript 5.6에서는 모든 input 파일에 대해 타입 체크를 생략하는 `--noCheck`라는 새로운 옵션을 도입했다. 이는 출력 파일을 생성하기 위해 필요한 의미 분석을 수행할 때 불필요한 타입 체크를 피하는데 유용하다.
+
+이 옵션의 사용 시나리오 중 하나는, Javascript 파일 생성과 타입 체크를 분리하여 두 작업을 각각의 단계로 실행하는 것이다. 예를 들어, 반복 작업 중에는 `tsc --noCheck`를 실행하고, 철저한 타입 체크를 위해서는 `tsc --noEmit`을 실행할 수 있다. 또한 두 작업을 병렬로 실행할 수 있으며, 심지어 `--watch`모드에서도 가능하다. 다만, 두 작업을 동시에 실행할 경우에는 `tsBuildInfoFile`경로를 따로 지정하는 것이 좋다.
+
+`--noCheck`는 선언 파일을 생성하는 경우에도 유용하다. `–isolatedDeclarations`를 준수하는 프로젝트에서 `--noCheck`가 지정된 경우, TypeScript는 타입 체크 과정 없이도 빠르게 선언 파일을 생성할 수 있다. 이렇게 생성된 선언 파일은 빠른 구문적 변환에만 의존하게 된다.
+
+`–noCheck`가 지정되었지만 프로젝트에서 `–isolatedDeclarations`를 사용하지 않는 경우, TypeScript는 여전히 `.d.ts` 파일을 생성하기 위해 필요한 만큼의 타입 체크를 수행할 수 있다. 이 점에서 `–noCheck`는 약간 오해의 소지가 있는 이름일 수 있지만, 이 과정은 전체 타입 체크보다는 느슨하게 진행되며, 주로 타입 주석이 없는 선언의 타입만 계산한다. 이는 전체 타입 체크보다 훨씬 빠르게 처리될 수 있다.
+
+`--noCheck`는 Typescript API를 통해서도 표준 옵션으로 사용할 수 있다. 내부적으로는 `transpileModule`과 `transpileDeclaration`을 사용해 속도를 높였다. 이제 어떤 빌드 도구라도 이 플래그를 활용해 다양한 맞춤형 전략을 통해 빌드 속도를 개선할 수 있다.
+
+더 자세한 정보는 [TypeScript 5.5에서 noCheck를 내부적으로 강화하기 위해 수행된 작업](https://github.com/microsoft/TypeScript/pull/58364)과 이를 [명령어에서 공개적으로 사용할 수 있도록 한 관련 작업](https://github.com/microsoft/TypeScript/pull/58839)을 참조하면 된다.
+
+## Allow --build with Intermediate Errors
+Typescript의 프로젝트 참조(project references) 개념은 코드베이스를 여러 프로젝트로 구성하고 그들 사이에 의존성을 만들 수 있게 해준다. `--build` 모드에서 Typescript 컴파일러를 실행하는 것은, 여러 프로젝트에 걸친 빌드를 실제로 수행하고, 어떤 프로젝트와 파일을 컴파일해야 하는지 파악하는 내장 방식이다.
+
+이전에는 `--build` 모드는 `--noEmitOnError`로 간주되어 에러를 맞닥뜨리는 순간 build가 중단되었다. 이는 즉 "상위" 종속성이 빌드 과정에서 에러가 발생된다면 해당 종속성을 사용하는 "하위" 프로젝트는 절대로 체크되거나 빌드될 수 없음을 의미했다. 이론적으로는 타당한 방식인데, 만약 프로젝트에 에러가 있다면 해당 프로젝트는 종속성에 대해 일관된 상태가 아닐 수 있기 때문이다.
+
+실제로, 이러한 엄격함이 업그레이드 작업을 더욱 어렵게 만들었다. 만약 프로젝트 B가 프로젝트 A에 의존한다면, 프로젝트 B에 더 익숙한 사람은 의존성이 업그레이드되기 전까지는 프로젝트 B를 업그레이드할 수 없게 된다. 프로젝트 A가 먼저 업그레이드되어야 하므로 프로젝트 B의 작업이 막히는 것이다.
+
+Typescript 5.6부터는 빌드 과정에서 종속성에 중간 오류가 있어도 프로젝트 빌드가 계속 진행된다. 중간 오류가 발생하면 해당 오류는 꾸준히 보고되고, 가능한 최선의 방식으로 출력 파일이 생성된다. 그러나 지정된 프로젝트의 빌드는 끝까지 완료된다.
+
+오류가 있는 프로젝트에서 빌드를 중단하고 싶다면, `--stopOnBuildErrors`라는 새로운 플래그를 사용할 수 있다. 이 플래그는 CI 환경에서 실행할 때나, 다른 프로젝트들이 많이 의존하는 프로젝트를 반복적으로 작업할 때 유용하다. 
+
+이를 달성하기 위해, Typescript는 이제 `--build`로 호출된 모든 프로젝트에 대해 `tsbuildinfo`파일을 항상 (`--incremental` 또는 `--composite`이 선언되지 않더라도) 생성한다. 이는 `--build`가 어떻게 호출되었는지와 앞으로 수행해야 할 작업의 상태를 추적하기 위함이다.
+
+더 자세한 정보는 [여기](https://github.com/microsoft/TypeScript/pull/58838)서 확인할 수 있다.
