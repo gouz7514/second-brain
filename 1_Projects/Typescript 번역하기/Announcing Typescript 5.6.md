@@ -386,3 +386,39 @@ Typescript 5.6부터는 빌드 과정에서 종속성에 중간 오류가 있어
 이를 달성하기 위해, Typescript는 이제 `--build`로 호출된 모든 프로젝트에 대해 `tsbuildinfo`파일을 항상 (`--incremental` 또는 `--composite`이 선언되지 않더라도) 생성한다. 이는 `--build`가 어떻게 호출되었는지와 앞으로 수행해야 할 작업의 상태를 추적하기 위함이다.
 
 더 자세한 정보는 [여기](https://github.com/microsoft/TypeScript/pull/58838)서 확인할 수 있다.
+
+## Region-Prioritized Diagnostics in Editors
+Typescript는 파일에 대해 진단을 할 때(에러, 제안, deprecation 과 같은), 보통은 전체 파일에 대해 검사를 진행할 것이다. 대부분의 경우 이는 괜찮지만, 엄청나게 거대한 파일의 경우 지연이 발생할 수 있다. 단순 오타 수정은 단순한 작업이지만, 거대한 파일에서는 몇 초가 소요될 수 있기 때문에 이는 매우 두려운 상황일 수 있다.
+
+이를 해결하기 위해 Typescript 5.6에서는 _region-priorizited diagnositics_ 또는 _region-prioritized checking_ 이라 불리는 기능을 도입했다. 파일들에 대해 단순히 검사를 요청하는 대신, 에디터는 특정 파일의 관련 영역을 제공할 수 있으며, 이 영역은 보통 사용자가 현재 보고 있는 파일의 부분을 의미한다. Typescript 언어 서버는 파일의 특정 영역과 전체 파일에 대해 각각 두 가지 진단 결과를 제공할 수 있다. 이를 통해 큰 파일을 편집할 때, 빨간 밑줄이 사라질 때까지 기다리는 시간이 줄어들어 편집 속도가 훨씬 더 빠르게 느껴지게 된다.
+
+Typescript의 checker.ts 파일에서 테스트한 결과, 전체 파일에 대한 진단은 3330ms가 걸렸다. 반면, region-based 진단의 경우 143ms에 불과했다. 남은 전체 파일에 대한 응답이 3200ms가 걸렸지만, 빠른 편집 작업에서는 이러한 차이가 큰 영향을 미칠 수 있다.
+
+이 기능은 진단 결과를 더 일관되게 보고하기 위한 작업도 포함하고 있다. type-checker가 캐싱을 활용해 중복된 작업을 피하는 방식 때문에, 동일한 타입 간의 후속 검사가 종종 다른 오류 메시지를 생성할 수 있었다. 더 자세하게 말하면, 지연된 비순차적 검사는 에디터의 두 위치에서 서로 다른 진단 결과를 보고할 수 있었다. 이 문제는 이번 기능 도입 이전에도 존재했지만, 이 문제를 더 악화시키고 싶지 않았다. 이번 작업을 통해 이러한 오류 불일치를 많이 해결했다.
+
+현재 이 기능은 Typescript 5.6 이후 버전과 VSC 환경에서 활용 가능하다.
+
+더 자세한 정보는 [여기](https://github.com/microsoft/TypeScript/pull/57842)서 확인할 수 있다.
+
+## Granular Commit Characters
+Typescript는 이제 각 자동 완성 항목에 대해 자체적인 _커밋 문자_ 를 제공한다. 커밋 문자는 사용자가 입력할 때 현재 제안된 자동 완성 항목을 자동으로 확정하는 특정 문자이다.
+
+이는 에디터에서 특정 문자를 입력할 때 에디터가 현재 제안된 자동 완성 항목을 더 자주 commit하게 된다는 의미이다. 다음 예시를 보자.
+
+```typescript
+declare let food: {
+    eat(): any;
+}
+
+let f = (foo/**/
+```
+
+만약 커서가 `/**/`에 있다면, 작성하고자 하는 코드가 `let f = (food.eat())`가 될지 `let f = (foo, bar) => foo + bar`가 될지 불확실하다. 우리는 우리가 다음으로 작성하는 문자에 따라 에디터가 다르게 자동 완성을 해주리라 기대하게 될 것이다. 예를 들어, 만약 우리가 `.`을 입력하면, 에디터가 `food` 변수를 사용할 가능성이 높게 될 것이다. 그러나 만약 `,`를 입력하면, arrow function 안의 파라미터를 작성하게 될 것이다.
+
+불행히도 이전에는 Typescript가 에디터에게 현재 텍스트가 새로운 파라미터 이름을 정의할 수 있다고 신호를 보냈기 때문에 어떤 커밋 문자도 안전하지 않았다. 그래서 `.`을 입력해도, 에디터가 `food`를 사용해 자동 완성해야 할 명확한 상황임에도 불구하고 아무 동작도 하지 않았다.
+
+이제 Typescript는 각 자동 완성 항목에 대해 안전하게 커밋할 수 있는 문자를 명시적으로 나열한다. 이 기능으로 인해 당장 즉각적인 변화를 느끼지는 않겠지만, 커밋 문자를 지원하는 에디터에서는 시간이 지남에 따라 자동 완성 동작이 개선될 것이다. 개선된 점을 바로 보려면 [VSC Insiders](https://code.visualstudio.com/insiders/)에서  [Typescript nightly extension](https://marketplace.visualstudio.com/items?itemName=ms-vscode.vscode-typescript-next)를 사용해 볼 수 있다. 위 코드에서 `.`을 입력하면 `food`를 자동 완성해 줄 것이다.
+
+더 자세한 정보는 다음에서 확인할 수 있다.
+- [커밋 문자 추가에 대한 PR](https://github.com/microsoft/TypeScript/pull/59339)
+- [context에 의존하는 커밋 문자에 대한 수정 작업](https://github.com/microsoft/TypeScript/pull/59523)
