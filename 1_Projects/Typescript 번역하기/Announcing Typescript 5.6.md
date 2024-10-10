@@ -422,3 +422,62 @@ let f = (foo/**/
 더 자세한 정보는 다음에서 확인할 수 있다.
 - [커밋 문자 추가에 대한 PR](https://github.com/microsoft/TypeScript/pull/59339)
 - [context에 의존하는 커밋 문자에 대한 수정 작업](https://github.com/microsoft/TypeScript/pull/59523)
+
+## Exclude Patterns for Auto-Imports
+Typescript는 이제 특정 지정자(specifier)에서 auto-import 제안을 필터링하기 위해 정규 표현식 패턴 목록을 지정할 수 있습니다. 예를 들어, `lodash`와 같은 패키지에서 모든 "깊은" import를 제외하려면 VSC에서 다음과 같은 설정을 구성할 수 있습니다.
+
+```json
+{
+    "typescript.preferences.autoImportSpecifierExcludeRegexes": [
+        "^lodash/.*$"
+    ]
+}
+```
+
+반대로, 패키지의 진입점에서 import하는 것을 금지하고 싶을 수도 있습니다.
+```json
+{
+    "typescript.preferences.autoImportSpecifierExcludeRegexes": [
+        "^lodash$"
+    ]
+}
+```
+
+다음과 같이 설정하면 `node:`에 대해서도 import를 방지할 수 있다.
+```json
+{
+    "typescript.preferences.autoImportSpecifierExcludeRegexes": [
+        "^node:"
+    ]
+}
+```
+
+`i`나 `u`와 같은 특정 정규식 flag를 지정하고 싶으면, 정규식을 슬래시로 감싸야 한다. 이때, 내부에 있는 슬래시는 escape 처리를 해야 한다.
+```json
+{
+    "typescript.preferences.autoImportSpecifierExcludeRegexes": [
+        "^./lib/internal",        // no escaping needed
+        "/^.\\/lib\\/internal/",  // escaping needed - note the leading and trailing slashes
+        "/^.\\/lib\\/internal/i"  // escaping needed - we needed slashes to provide the 'i' regex flag
+    ]
+}
+```
+
+JavaScript에 대해서도 VSC에서 `javascript.preferences.autoImportSpecifierExcludeRegexes`
+ 설정을 통해 적용할 수 있다.
+
+`typescript.preferences.autoImportFileExcludePatterns`와 겹치는 것처럼 보이지만, 차이가 있다. 기존의 `autoImportFileExcludePatterns`는 파일 경로를 제외하기 위해 글롭(glob) 패턴 목록을 사용한다. 특정 파일 또는 디렉토리에 대해 auto-import를 피하고 싶은 대다수의 상황에 있어서는 간단할 수 있지만, 항상 그렇지는 않을 것이다. 예를 들어, `@types/node` 패키지를 사용하는 경우, 동일한 파일이 `fs`와 `node:fs`를 모두 선언하기 때문에 `autoImportExcludePatterns`를 사용해 둘 중 하나를 필터링할 수 없다.
+
+새로운 `autoImportSpecifierExcludeRegexes` 옵션은 모듈 지정자에 특화되어 있어, `fs` 또는 `node:fs` 둘 중 하나를 제외하는 표현식을 작성할 수 있다.더 나아가, 패턴을 사용해 auto-import가 다른 지정자 스타일을 선호하도록 설정할 수 있다. (`./foo/bar.js`를 `#foo/bar.js`보다 선호하게 할 수 있다.)
+
+더 자세한 정보는 [여기](https://github.com/microsoft/TypeScript/pull/59543)서 확인할 수 있다.
+
+## Notable Behavioral Changes
+
+### lib.d.ts
+
+### .tsbuildinfo is Always Written
+
+### Respecting File Extensions and package.json from within node_modules
+
+### Correct Override Checks on Computed Properties
