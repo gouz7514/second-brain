@@ -473,11 +473,67 @@ JavaScript에 대해서도 VSC에서 `javascript.preferences.autoImportSpecifier
 더 자세한 정보는 [여기](https://github.com/microsoft/TypeScript/pull/59543)서 확인할 수 있다.
 
 ## Notable Behavioral Changes
+이 섹션에서는 알아두면 좋을 변경 사항들에 대해 다루고 있으며 deprecation, 기능 제거 또는 새로운 제약일 수도 있다. 버그 수정을 위한 기술적 개선도 포함되며, 이는 기존 빌드에 새로운 에러를 야기할 수도 있다.
 
 ### lib.d.ts
+DOM을 위해 생성된 type은 코드베이스의 type을 검사하는데 영향을 끼칠 수 있다. 더 자세한 정보는, [DOM과 lib.d.ts 관련 이슈](https://github.com/microsoft/TypeScript/issues/58764)들을 살펴보자
 
 ### .tsbuildinfo is Always Written
+`--build` 모드에서 중간 의존성에 오류가 있어도 프로젝트 빌드를 계속 진행할 수 있도록 하기 위해, 그리고 명령줄에서 `--noCheck`를 지원하기 위해 Typescript는 이제 --build 호출 시 모든 프로젝트에 대해 항상 `.tsbuildinfo` 파일을 생성한다. 이는 `--incremental` 옵션의 활성화 여부과 관계없이 발생한다. 더 자세한 정보는 [여기](https://github.com/microsoft/TypeScript/pull/58626)서 확인할 수 있다.
 
 ### Respecting File Extensions and package.json from within node_modules
+Node.js가 12버전에서 ECMAScript module을 지원하기 이전에는, Typescript가 `node_modules`에서 찾은 `.d.ts` 파일이 CommonJS로 작성된 Javascript 파일인지, ECMAScript 모듈인지 알 수 있는 좋은 방법이 없었다. 대부분의 npm 패키지가 CommonJS만 사용하던 시기에는 큰 문제가 없었으며 의심스러운 경우, Typescript는 모든 것이 CommonJS처럼 동작한다고 가정할 수 있었다. 그러나 만약 이 가정이 틀리다면 이는 안전하지 않은 import를 허용할 수 있다.
+
+```typescript
+// node_modules/dep/index.d.ts
+export declare function doSomething(): void;
+
+// index.ts
+// Okay if "dep" is a CommonJS module, but fails if
+// it's an ECMAScript module - even in bundlers!
+import dep from "dep";
+dep.doSomething();
+```
+
+실제로 많이 발생하는 경우는 아니다. 그러나 Node.js가 ECMAScript 모듈을 지원하기 시작한 이후로, ESM (ECMAScript Module)의 공유수도 점점 늘어갔다. 다행히, Node.js는 Typescrip가 주어진 파일이 ECMAScript module인지 혹은 CommonJS 모듈인지 결정하도록 하는 메커니즘을 도입했다. `.mjs`와 `.cjs` 파일 확장자 그리고 `package.json`의 `"type"`필드가 바로 그것이며, Typescript 4.7에서`.mts`, `.cts` 파일들을 통해 이들을 지원했다. 그러나 Typescript는 오직 `--module node16`과 `--module nodenext`에서만 이들을 읽을 수 있었기에, `--module esnext`, `--moduleResolution bundler`를 사용하는 사람에게는 불안전한 import가 여전히 문제로 남게 되었다.
+
+이를 해결하기 위해 Typescript 5.6은 module forat 정보를 수집하고 위와 같은 모든 `module` 모드에서 발생하는 모호함을 해결하기 위해 사용한다. 형식별 파일 확장자(`.mts` 또는 `.cts`)는 어디에서든 인식되며, `module` 설정에 관계없이 `node_modules` 의 의존성 내에서는 `package.json`의 `"type"`필드가 참조된다. 이전에는, CommonJS 결과를 `.mjs` 로 바꾸거나 혹은 그 반대의 경우만 기술적으로 가능했다.
+
+```typescript
+// main.mts
+export default "oops";
+
+// $ tsc --module commonjs main.mts
+// main.mjs
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.default = "oops";
+```
+
+이제는 `.mts` 파일이 CommonJS 결과물을 만들지 않고, `.cts` 파일이 ESM 결과물을 만들어내지 않는다.
+
+이 동작들은 Typescript 5.5 버전의 초기 릴리즈 버전에서 이미 제공되었으나, 5.6부터 이 동작은 `node_modules` 내의 파일에만 확장된다.
+
+더 자세한 정보는 [여기](https://github.com/microsoft/TypeScript/pull/58825)서 확인할 수 있다.
 
 ### Correct Override Checks on Computed Properties
+이전에는 `override`로 선언된 속성이 base class member (override 대상이 된 클래스의 멤버)의 존재 여부를 제대로 검사하지 않았다. 이와 유사하게, 만약 `noImplicitOverride`를 사용하면, `override` 를 선언하는 것을 잊더라도 아무 에러가 발생하지 않을 것이다.
+
+Typescript 5.6에서는 이 두 케이스 모두 속성을 제대로 검사한다.
+```typescript
+const foo = Symbol("foo");
+const bar = Symbol("bar");
+
+class Base {
+    [bar]() {}
+}
+
+class Derived extends Base {
+    override [foo]() {}
+//           ~~~~~
+// error: This member cannot have an 'override' modifier because it is not declared in the base class 'Base'.
+
+    [bar]() {}
+//  ~~~~~
+// error under noImplicitOverride: This member must have an 'override' modifier because it overrides a member in the base class 'Base'.
+}
+```
