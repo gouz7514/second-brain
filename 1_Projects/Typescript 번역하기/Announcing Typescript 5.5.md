@@ -307,7 +307,7 @@ Typescript 5.5는 ECMAScript에 새롭게 등장한 `Set` 타입을 포함한다
 
 ---
 ## Isolated Declarations
-Decliratino files (`.d.ts` 파일들)는Typescript에게 특정 라이브러리와 모듈의 형태를 설명해준다.  
+Declaration files (`.d.ts` 파일들)는Typescript에게 특정 라이브러리와 모듈의 형태를 설명해준다.  
 이 파일들은 라이브러리의 타입 정의를 포함함과 동시에 함수 바디와 같은 상세한 실행 내용 등은 포함하지 않는다.  
 라이브러리를 분석할 필요 없이 Typescript가 라이브러리를 체크할 수 있게 해준다.  
 수기로 declaration files들을 작성할 수 있지만, 더 안전하고 간단한 방법은 `--declaration`  을 사용해 Typescript가 자동으로 이 파일들을 생성하게 하는 것이다.
