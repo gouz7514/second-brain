@@ -497,7 +497,7 @@ dep.doSomething();
 
 실제로 많이 발생하는 경우는 아니다. 그러나 Node.js가 ECMAScript 모듈을 지원하기 시작한 이후로, ESM (ECMAScript Module)의 공유수도 점점 늘어갔다. 다행히, Node.js는 Typescrip가 주어진 파일이 ECMAScript module인지 혹은 CommonJS 모듈인지 결정하도록 하는 메커니즘을 도입했다. `.mjs`와 `.cjs` 파일 확장자 그리고 `package.json`의 `"type"`필드가 바로 그것이며, Typescript 4.7에서`.mts`, `.cts` 파일들을 통해 이들을 지원했다. 그러나 Typescript는 오직 `--module node16`과 `--module nodenext`에서만 이들을 읽을 수 있었기에, `--module esnext`, `--moduleResolution bundler`를 사용하는 사람에게는 불안전한 import가 여전히 문제로 남게 되었다.
 
-이를 해결하기 위해 Typescript 5.6은 module forat 정보를 수집하고 위와 같은 모든 `module` 모드에서 발생하는 모호함을 해결하기 위해 사용한다. 형식별 파일 확장자(`.mts` 또는 `.cts`)는 어디에서든 인식되며, `module` 설정에 관계없이 `node_modules` 의 의존성 내에서는 `package.json`의 `"type"`필드가 참조된다. 이전에는, CommonJS 결과를 `.mjs` 로 바꾸거나 혹은 그 반대의 경우만 기술적으로 가능했다.
+이를 해결하기 위해 Typescript 5.6은 module format 정보를 수집하고 위와 같은 모든 `module` 모드에서 발생하는 모호함을 해결하기 위해 사용한다. 형식별 파일 확장자(`.mts` 또는 `.cts`)는 어디에서든 인식되며, `module` 설정에 관계없이 `node_modules` 의 의존성 내에서는 `package.json`의 `"type"`필드가 참조된다. 이전에는, CommonJS 결과를 `.mjs` 로 바꾸거나 혹은 그 반대의 경우만 기술적으로 가능했다.
 
 ```typescript
 // main.mts
